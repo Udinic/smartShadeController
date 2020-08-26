@@ -2,70 +2,82 @@
 
 Servo myServo;  // create servo object to control a servo
 
-uint8_t servoPin = 23;
-uint8_t redBtnPin = 5;
-uint8_t greenBtnPin  = 18;
+const uint8_t PIN_SERVO = 23;
+const uint8_t PIN_UP_BTN = 5;
+const uint8_t PIN_DOWN_BTN = 18;
 
 bool moving = false;
 
-int greenPresses = 0;
-int redPresses = 0;
+uint8_t btnDownCurr;
+uint8_t btnDownPrev;
 
-uint8_t btnPrevGreen;
-uint8_t btnPrevRed;
+uint8_t btnUpCurr;
+uint8_t btnUpPrev;
+
 
 void setup() {
   Serial.begin(9600);
-  
-  pinMode(redBtnPin, INPUT_PULLUP);
-  btnPrevRed = digitalRead(redBtnPin);
-//  digitalWrite(redBtnPin, HIGH);
-  
-  pinMode(greenBtnPin, INPUT_PULLUP);
-  btnPrevGreen = digitalRead(greenBtnPin);
-//  digitalWrite(greenBtnPin, HIGH);
-    
-  Serial.println("Servo udinic starting");
 
-  myServo.attach(servoPin);
-  Serial.println("Servo attached");
+  Serial.println("");
+  Serial.println("");
+  Serial.println("");
+  Serial.println("***************************************");
+  Serial.println("  Balcony motorized shades circuit");
+  Serial.println("");
+  Serial.println("  Written by: Udi Cohen");
+  Serial.println("***************************************");
+
+  pinMode(PIN_UP_BTN, INPUT_PULLUP);
+  btnUpPrev = digitalRead(PIN_UP_BTN);
+  
+  pinMode(PIN_DOWN_BTN, INPUT_PULLUP);
+  btnDownPrev = digitalRead(PIN_DOWN_BTN);
+    
+  Serial.println("Started listening to input..");
 }
 
+void rotateClockwise() {
+  myServo.attach(PIN_SERVO);
+  myServo.writeMicroseconds(850);  
+}
+
+void rotateCounterClockwise() {
+  myServo.attach(PIN_SERVO);
+  myServo.writeMicroseconds(2100);  
+}
+
+void stopRotating() {
+  Serial.println("Stopping..");
+  myServo.detach();
+}
+
+
 void loop() {
-  if (digitalRead(redBtnPin) == LOW && btnPrevRed == HIGH) {
-      redPresses++;
-      if (moving) {
-        Serial.println("Stopping..");
-        myServo.detach();
-        moving = false;
-      } else {
-        Serial.print("[");
-        Serial.print(redPresses);
-        Serial.print("]");
-        Serial.println("Pressing red button");
-        myServo.attach(servoPin);
-        myServo.writeMicroseconds(2100);   
-        moving = true;   
-      }
+  btnUpCurr = digitalRead(PIN_UP_BTN);
+  btnDownCurr = digitalRead(PIN_DOWN_BTN);
+  
+  if (btnUpCurr == LOW && btnUpPrev == HIGH) {
+    Serial.println("Pressed UP button");
+    if (moving) {
+      stopRotating();
+      moving = false;
+    } else {
+      rotateCounterClockwise();
+      moving = true;
+    }
   }  
 
-  if (digitalRead(greenBtnPin) == LOW && btnPrevGreen == HIGH) {
-      greenPresses++;
-      if (moving) {
-        Serial.println("Stopping..");
-        myServo.detach();
-        moving = false;
-      } else {
-        Serial.print("[");
-        Serial.print(greenPresses);
-        Serial.print("]");
-        Serial.println("Pressing green button");
-        myServo.attach(servoPin);
-        myServo.writeMicroseconds(850);  
-        moving = true; 
-      }
+  if (btnDownCurr == LOW && btnDownPrev == HIGH) {
+    Serial.println("Pressed DOWN button");
+    if (moving) {
+      stopRotating();
+      moving = false;
+    } else {
+      rotateClockwise();
+      moving = true;
+    }
   }
 
-  btnPrevRed = digitalRead(redBtnPin);
-  btnPrevGreen = digitalRead(greenBtnPin);
+  btnUpPrev = btnUpCurr;
+  btnDownPrev = btnDownCurr;
 }
