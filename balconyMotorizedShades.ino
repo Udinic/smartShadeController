@@ -2,13 +2,13 @@
 #include <Adafruit_PN532.h>
 
 #define PN532_IRQ   (2)
-#define PN532_RESET (3)  // Not connected by default on the NFC Shield
+#define PN532_RESET (14)  // Not connected by default on the NFC Shield
 
 Servo myServo;  // create servo object to control a servo
 
-const uint8_t PIN_SERVO = 23;
+const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
-const uint8_t PIN_DOWN_BTN = 18;
+const uint8_t PIN_DOWN_BTN = 15;
 
 bool moving = false;
 bool listeningToNFC = false;
@@ -39,7 +39,7 @@ void setup() {
   Serial.println("  Written by: Udi Cohen");
   Serial.println("***************************************");
 
-  Serial.println("Initializing NFC chip..");
+  Serial.println("Initializing NFC chip...");
   nfc.begin();
 
   uint32_t versiondata = nfc.getFirmwareVersion();
@@ -62,6 +62,7 @@ void setup() {
   btnDownPrev = digitalRead(PIN_DOWN_BTN);
     
   Serial.println("Started listening to input..");
+
 }
 
 void startListeningToNFC() {
@@ -76,6 +77,7 @@ void startListeningToNFC() {
 void stopListeningToNFC() {
   listeningToNFC = false;
   Serial.println("STOP listening to NFC tags..");
+  digitalWrite(PN532_RESET, HIGH);
   
 }
 
@@ -170,6 +172,8 @@ void loop() {
     delay(500);
     Serial.println("Start listening for cards again");
     nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+  } else if (irqCurr == LOW && irqPrev == HIGH) {
+    Serial.println("##### Got IRQ while not listening..");  
   }
 
   irqPrev = irqCurr;
