@@ -6,6 +6,8 @@
 
 Servo myServo;  // create servo object to control a servo
 
+const boolean NFC_DISABLED = true;
+
 const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
 const uint8_t PIN_DOWN_BTN = 15;
@@ -43,20 +45,22 @@ void setup() {
   Serial.println("  Written by: Udi Cohen");
   Serial.println("***************************************");
 
-  Serial.println("Initializing NFC chip...");
-  nfc.begin();
-
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (! versiondata) {
-    Serial.print("Didn't find PN53x board");
-    while (1); // halt
+  if (!NFC_DISABLED) {
+    Serial.println("Initializing NFC chip...");
+    nfc.begin();
+  
+    uint32_t versiondata = nfc.getFirmwareVersion();
+    if (! versiondata) {
+      Serial.print("Didn't find PN53x board");
+      while (1); // halt
+    }
+  
+    // configure board to read RFID tags
+    nfc.SAMConfig();
+  
+    // Setting the NFC IRQ pin.
+    pinMode(PN532_IRQ, INPUT_PULLUP);
   }
-
-  // configure board to read RFID tags
-  nfc.SAMConfig();
-
-  // Setting the NFC IRQ pin.
-  pinMode(PN532_IRQ, INPUT_PULLUP);
 
   //Setting up the buttong
   pinMode(PIN_UP_BTN, INPUT_PULLUP);
@@ -70,6 +74,9 @@ void setup() {
 }
 
 void startListeningToNFC() {
+  if (NFC_DISABLED) {
+    return;
+  }
   listeningToNFC = true;
   irqCurr = digitalRead(PN532_IRQ);
   irqPrev = irqCurr;
@@ -79,6 +86,9 @@ void startListeningToNFC() {
 }
 
 void stopListeningToNFC() {
+  if (NFC_DISABLED) {
+    return;
+  }
   listeningToNFC = false;
   Serial.println("STOP listening to NFC tags..");
   digitalWrite(PN532_RESET, HIGH);
