@@ -10,7 +10,11 @@ const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
 const uint8_t PIN_DOWN_BTN = 15;
 
-bool moving = false;
+const uint32_t CARDID_TOP = 3952824665;
+const uint32_t CARDID_BOTTOM = 3591963054;
+
+bool movingUp = false;
+bool movingDown = false;
 bool listeningToNFC = false;
 
 uint8_t btnDownCurr;
@@ -51,7 +55,7 @@ void setup() {
   // configure board to read RFID tags
   nfc.SAMConfig();
 
-  // Setting the interrupt to be triggered from the IRQ pin.
+  // Setting the NFC IRQ pin.
   pinMode(PN532_IRQ, INPUT_PULLUP);
 
   //Setting up the buttong
@@ -84,16 +88,39 @@ void stopListeningToNFC() {
 void rotateClockwise() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(850);  
+  movingDown = true;
+  movingUp = false;
 }
 
 void rotateCounterClockwise() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(2100);  
+  movingUp = true;
+  movingDown = false;
 }
 
 void stopRotating() {
   Serial.println("Stopping..");
+  movingUp = false;
+  movingDown = false;
   myServo.detach();
+}
+
+uint32_t getCardId(uint8_t uid[], uint8_t uidLength) {
+    if (uidLength == 4)
+    {
+      // We probably have a Mifare Classic card ... 
+      uint32_t cardid = uid[0];
+      cardid <<= 8;
+      cardid |= uid[1];
+      cardid <<= 8;
+      cardid |= uid[2];  
+      cardid <<= 8;
+      cardid |= uid[3]; 
+      return cardid;
+    } else {
+      return -1;
+    }
 }
 
 void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
@@ -127,26 +154,22 @@ void loop() {
   
   if (btnUpCurr == LOW && btnUpPrev == HIGH) {
     Serial.println("Pressed UP button");
-    if (moving) {
+    if (movingUp || movingDown) {
       stopRotating();
-      moving = false;
       stopListeningToNFC();
     } else {
       rotateCounterClockwise();
-      moving = true;
       startListeningToNFC();
     }
   }  
 
   if (btnDownCurr == LOW && btnDownPrev == HIGH) {
     Serial.println("Pressed DOWN button");
-    if (moving) {
+    if (movingUp || movingDown) {
       stopRotating();
-      moving = false;
       stopListeningToNFC();
     } else {
       rotateClockwise();
-      moving = true;
       startListeningToNFC();
     }
   }
@@ -166,12 +189,37 @@ void loop() {
     Serial.println(success ? "Read successful" : "Read failed (not a card?)");
 
     if (success) {
-      printShitAboutCard(uid, uidLength);
+      uint32_t cardId = getCardId(uid, uidLength);
+      if (cardId == CARDID_TOP) {
+        if (movingDown) {
+          Serial.print("FOUND TOP CARD while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          stopRotating();
+          stopListeningToNFC();
+        } else if (movingUp) {
+          Serial.print("Found top card while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        } else {
+          Serial.print("Found top card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        }
+      } else if (cardId == CARDID_BOTTOM) {
+        if (movingUp) {
+          Serial.print("FOUND BOTTOM CARD while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          stopRotating();
+          stopListeningToNFC();
+        } else if (movingDown) {
+          Serial.print("Found bottom card while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        } else {
+          Serial.print("Found bottom card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        }        
+      } else {
+        Serial.print("Found unidentified card["); Serial.print(cardId); Serial.println("]. Ignoring..");
+      }
     }
 
-    delay(500);
-    Serial.println("Start listening for cards again");
-    nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+    if (listeningToNFC) {
+      delay(500);
+      Serial.println("Start listening for cards again");
+      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+    }
   } else if (irqCurr == LOW && irqPrev == HIGH) {
     Serial.println("##### Got IRQ while not listening..");  
   }
