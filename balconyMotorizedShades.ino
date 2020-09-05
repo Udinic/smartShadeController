@@ -6,7 +6,7 @@
 
 Servo myServo;  // create servo object to control a servo
 
-const boolean NFC_DISABLED = true;
+const boolean NFC_DISABLED = false;
 
 const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
