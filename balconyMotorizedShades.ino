@@ -115,6 +115,74 @@ void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
     Serial.println("***********************");
 }
 
+void setTargetShadeLevel(int percentOpen) {
+  if (percentOpen == 100) {
+    rotateCounterClockwise();
+  } else if (percentOpen == 0) {
+    rotateClockwise();
+  }
+  startListeningToNFC();
+}
+
+void stopShade() {
+  stopRotating();
+  stopListeningToNFC();
+}
+
+int shadeLevel = 100;
+void setShadeLevel(int percentOpen) {
+  shadeLevel = percentOpen;
+}
+
+void handleNFCDetected() {
+    Serial.println("**********");
+    Serial.println("Got NFC IRQ");  
+    Serial.println("**********");
+
+    uint8_t success = false;
+    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+    uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+
+    // read the NFC tag's info
+    success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
+    Serial.println(success ? "Read successful" : "Read failed (not a card?)");
+
+    if (success) {
+      uint32_t cardId = getCardId(uid, uidLength);
+      if (cardId == CARDID_TOP) {
+        // Shade is fully closed
+        if (movingDown) {
+          Serial.print("FOUND TOP CARD while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          stopShade();
+          setShadeLevel(0);
+        } else if (movingUp) {
+          Serial.print("Found top card while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        } else {
+          Serial.print("Found top card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        }
+      } else if (cardId == CARDID_BOTTOM) {
+        // Shade is fully open
+        if (movingUp) {
+          Serial.print("FOUND BOTTOM CARD while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          stopShade();
+          setShadeLevel(100);
+        } else if (movingDown) {
+          Serial.print("Found bottom card while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        } else {
+          Serial.print("Found bottom card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+        }        
+      } else {
+        Serial.print("Found unidentified card["); Serial.print(cardId); Serial.println("]. Ignoring..");
+      }
+    }
+
+    if (listeningToNFC) {
+      delay(500);
+      Serial.println("Start listening for cards again");
+      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+    }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -152,7 +220,6 @@ void setup() {
   btnDownPrev = digitalRead(PIN_DOWN_BTN);
     
   Serial.println("Started listening to input..");
-
 }
 
 void loop() {
@@ -163,71 +230,23 @@ void loop() {
   if (btnUpCurr == LOW && btnUpPrev == HIGH) {
     Serial.println("Pressed UP button");
     if (movingUp || movingDown) {
-      stopRotating();
-      stopListeningToNFC();
+      stopShade();
     } else {
-      rotateCounterClockwise();
-      startListeningToNFC();
+      setTargetShadeLevel(100);
     }
   }  
 
   if (btnDownCurr == LOW && btnDownPrev == HIGH) {
     Serial.println("Pressed DOWN button");
     if (movingUp || movingDown) {
-      stopRotating();
-      stopListeningToNFC();
+      stopShade();
     } else {
-      rotateClockwise();
-      startListeningToNFC();
+      setTargetShadeLevel(0);
     }
   }
 
   if (listeningToNFC && irqCurr == LOW && irqPrev == HIGH) {
-      
-    Serial.println("**********");
-    Serial.println("Got NFC IRQ");  
-    Serial.println("**********");
-
-    uint8_t success = false;
-    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-    uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-
-    // read the NFC tag's info
-    success = nfc.readDetectedPassiveTargetID(uid, &uidLength);
-    Serial.println(success ? "Read successful" : "Read failed (not a card?)");
-
-    if (success) {
-      uint32_t cardId = getCardId(uid, uidLength);
-      if (cardId == CARDID_TOP) {
-        if (movingDown) {
-          Serial.print("FOUND TOP CARD while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
-          stopRotating();
-          stopListeningToNFC();
-        } else if (movingUp) {
-          Serial.print("Found top card while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
-        } else {
-          Serial.print("Found top card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
-        }
-      } else if (cardId == CARDID_BOTTOM) {
-        if (movingUp) {
-          Serial.print("FOUND BOTTOM CARD while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
-          stopRotating();
-          stopListeningToNFC();
-        } else if (movingDown) {
-          Serial.print("Found bottom card while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
-        } else {
-          Serial.print("Found bottom card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
-        }        
-      } else {
-        Serial.print("Found unidentified card["); Serial.print(cardId); Serial.println("]. Ignoring..");
-      }
-    }
-
-    if (listeningToNFC) {
-      delay(500);
-      Serial.println("Start listening for cards again");
-      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-    }
+     handleNFCDetected(); 
   } else if (irqCurr == LOW && irqPrev == HIGH) {
     Serial.println("##### Got IRQ while not listening..");  
   }
