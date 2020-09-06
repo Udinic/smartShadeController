@@ -1,77 +1,35 @@
 #include <ESP32Servo.h>
 #include <Adafruit_PN532.h>
 
+// PIN definitions
 #define PN532_IRQ   (2)
-#define PN532_RESET (14)  // Not connected by default on the NFC Shield
-
-Servo myServo;  // create servo object to control a servo
-
-const boolean NFC_DISABLED = false;
-
+#define PN532_RESET (14)
 const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
 const uint8_t PIN_DOWN_BTN = 15;
 
+// Config
+const boolean NFC_DISABLED = false;
+
+// Supported NFC tags
 const uint32_t CARDID_TOP = 3952824665;
 const uint32_t CARDID_BOTTOM = 3591963054;
 
+// State
 bool movingUp = false;
 bool movingDown = false;
 bool listeningToNFC = false;
-
 uint8_t btnDownCurr;
 uint8_t btnDownPrev;
-
 uint8_t btnUpCurr;
 uint8_t btnUpPrev;
-
 uint8_t irqCurr;
 uint8_t irqPrev;
-
 
 // Init the object that controls the PN532 NFC chip
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
-
-void setup() {
-  Serial.begin(115200);
-
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
-  Serial.println("***************************************");
-  Serial.println("  Balcony motorized shades circuit");
-  Serial.println("");
-  Serial.println("  Written by: Udi Cohen");
-  Serial.println("***************************************");
-
-  if (!NFC_DISABLED) {
-    Serial.println("Initializing NFC chip...");
-    nfc.begin();
-  
-    uint32_t versiondata = nfc.getFirmwareVersion();
-    if (! versiondata) {
-      Serial.print("Didn't find PN53x board");
-      while (1); // halt
-    }
-  
-    // configure board to read RFID tags
-    nfc.SAMConfig();
-  
-    // Setting the NFC IRQ pin.
-    pinMode(PN532_IRQ, INPUT_PULLUP);
-  }
-
-  //Setting up the buttong
-  pinMode(PIN_UP_BTN, INPUT_PULLUP);
-  btnUpPrev = digitalRead(PIN_UP_BTN);
-  
-  pinMode(PIN_DOWN_BTN, INPUT_PULLUP);
-  btnDownPrev = digitalRead(PIN_DOWN_BTN);
-    
-  Serial.println("Started listening to input..");
-
-}
+Servo myServo;
 
 void startListeningToNFC() {
   if (NFC_DISABLED) {
@@ -155,6 +113,46 @@ void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
     }
     Serial.println("");
     Serial.println("***********************");
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  Serial.println("");
+  Serial.println("");
+  Serial.println("");
+  Serial.println("***************************************");
+  Serial.println("  Balcony motorized shades circuit");
+  Serial.println("");
+  Serial.println("  Written by: Udi Cohen");
+  Serial.println("***************************************");
+
+  if (!NFC_DISABLED) {
+    Serial.println("Initializing NFC chip...");
+    nfc.begin();
+  
+    uint32_t versiondata = nfc.getFirmwareVersion();
+    if (! versiondata) {
+      Serial.print("Didn't find PN53x board");
+      while (1); // halt
+    }
+  
+    // configure board to read RFID tags
+    nfc.SAMConfig();
+  
+    // Setting the NFC IRQ pin.
+    pinMode(PN532_IRQ, INPUT_PULLUP);
+  }
+
+  //Setting up the buttong
+  pinMode(PIN_UP_BTN, INPUT_PULLUP);
+  btnUpPrev = digitalRead(PIN_UP_BTN);
+  
+  pinMode(PIN_DOWN_BTN, INPUT_PULLUP);
+  btnDownPrev = digitalRead(PIN_DOWN_BTN);
+    
+  Serial.println("Started listening to input..");
+
 }
 
 void loop() {
