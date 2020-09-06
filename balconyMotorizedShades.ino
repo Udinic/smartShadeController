@@ -1,6 +1,8 @@
 #include <ESP32Servo.h>
 #include <Adafruit_PN532.h>
 
+#include "config.h"
+
 // PIN definitions
 #define PN532_IRQ   (2)
 #define PN532_RESET (14)
@@ -16,6 +18,7 @@ const uint32_t CARDID_TOP = 3952824665;
 const uint32_t CARDID_BOTTOM = 3591963054;
 
 // State
+boolean connectingInProgress = false;
 bool movingUp = false;
 bool movingDown = false;
 bool listeningToNFC = false;
@@ -25,6 +28,10 @@ uint8_t btnUpCurr;
 uint8_t btnUpPrev;
 uint8_t irqCurr;
 uint8_t irqPrev;
+
+// Init the MQTT feeds
+AdafruitIO_Feed *balconyShade = io.feed("shade-open");
+AdafruitIO_Feed *shadeLogs = io.feed("shade-logs");
 
 // Init the object that controls the PN532 NFC chip
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
@@ -116,6 +123,7 @@ void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
 }
 
 void setTargetShadeLevel(int percentOpen) {
+  Serial.print("setTargetShadeLevel percentOpen[");Serial.print(percentOpen);Serial.println("]");
   if (percentOpen == 100) {
     rotateCounterClockwise();
   } else if (percentOpen == 0) {
@@ -183,6 +191,32 @@ void handleNFCDetected() {
     }
 }
 
+void subscribeMqttFeeds() {
+  balconyShade->onMessage(handleShadeLevelMessage);
+}
+
+void handleShadeLevelMessage(AdafruitIO_Data *data) {
+  int shadeOpenPercent = atoi(data->value());
+  Serial.print("[MQTT] Received shade level message with the value[");
+  Serial.print(shadeOpenPercent);
+  Serial.println("]");
+  setTargetShadeLevel(shadeOpenPercent);
+}
+
+void handleConnectivity() {
+  aio_status_t ioStatus = io.run(400, true);
+
+  if (ioStatus < AIO_CONNECTED && !connectingInProgress) {
+    Serial.println("Need to connect, starting..");
+    connectingInProgress = true;
+    io.connect();       
+  } else if (ioStatus >= AIO_CONNECTED && connectingInProgress) {
+    connectingInProgress = false;
+    Serial.println("Connected to Adafruit IO!");
+    subscribeMqttFeeds();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -223,6 +257,8 @@ void setup() {
 }
 
 void loop() {
+  handleConnectivity();
+  
   btnUpCurr = digitalRead(PIN_UP_BTN);
   btnDownCurr = digitalRead(PIN_DOWN_BTN);
   irqCurr = digitalRead(PN532_IRQ);
