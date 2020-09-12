@@ -15,7 +15,7 @@ const boolean NFC_DISABLED = false;
 
 // Supported NFC tags
 const uint32_t CARDID_TOP = 3952824665;
-const uint32_t CARDID_BOTTOM = 3591963054;
+const uint32_t CARDID_BOTTOM = 913822226;
 
 // State
 boolean connectingInProgress = false;
