@@ -5,7 +5,7 @@
 
 // PIN definitions
 #define PN532_IRQ   (2)
-#define PN532_RESET (14)
+#define PN532_RESET (4)
 const uint8_t PIN_SERVO = 13;
 const uint8_t PIN_UP_BTN = 5;
 const uint8_t PIN_DOWN_BTN = 15;
@@ -16,6 +16,10 @@ const boolean NFC_DISABLED = false;
 // Supported NFC tags
 const uint32_t CARDID_TOP = 3952824665;
 const uint32_t CARDID_BOTTOM = 913822226;
+
+// Debug NFC tags
+//const uint32_t CARDID_TOP = 3495622186;
+//const uint32_t CARDID_BOTTOM = 3068196269;
 
 // State
 boolean connectingInProgress = false;
@@ -28,6 +32,7 @@ uint8_t btnUpCurr;
 uint8_t btnUpPrev;
 uint8_t irqCurr;
 uint8_t irqPrev;
+long lastTimeAskedToStartListening = 0;
 
 // Init the MQTT feeds
 AdafruitIO_Feed *balconyShade = io.feed("shade-open");
@@ -48,6 +53,7 @@ void startListeningToNFC() {
   
   Serial.println("START listening to NFC tags..");
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+  lastTimeAskedToStartListening = millis();
 }
 
 void stopListeningToNFC() {
@@ -55,6 +61,7 @@ void stopListeningToNFC() {
     return;
   }
   listeningToNFC = false;
+  lastTimeAskedToStartListening = 0;
   Serial.println("STOP listening to NFC tags..");
   digitalWrite(PN532_RESET, HIGH);
   
@@ -187,7 +194,9 @@ void handleNFCDetected() {
     if (listeningToNFC) {
       delay(500);
       Serial.println("Start listening for cards again");
-      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
+      startListeningToNFC();
+// Possible culprit for the problem that needed the hack
+//      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
     }
 }
 
@@ -286,6 +295,19 @@ void loop() {
   } else if (irqCurr == LOW && irqPrev == HIGH) {
     Serial.println("##### Got IRQ while not listening..");  
   }
+
+  // Hacky section that re-start listening to cards.
+  // This is a workaround to a situation where the reader reads the same card continiously and 
+  // stops reading any new cards after that.
+//  if (lastTimeAskedToStartListening  > 0 && millis() - lastTimeAskedToStartListening > 5000) {
+//    if (listeningToNFC) {
+//      Serial.println("Start listening for cards again (loop)");
+//      startListeningToNFC();
+//    } else {
+//      Serial.println("Looping...");
+//    }
+//    lastTimeAskedToStartListening = millis();
+//  }
 
   irqPrev = irqCurr;
   btnUpPrev = btnUpCurr;
