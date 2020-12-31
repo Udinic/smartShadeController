@@ -6,9 +6,9 @@
 // PIN definitions
 #define PN532_IRQ   (2)
 #define PN532_RESET (4)
-const uint8_t PIN_SERVO = 13;
-const uint8_t PIN_UP_BTN = 5;
-const uint8_t PIN_DOWN_BTN = 15;
+#define PIN_SERVO (13)
+#define PIN_UP_BTN (5)
+#define PIN_DOWN_BTN (15)
 
 // Config
 const boolean NFC_DISABLED = false;
@@ -67,6 +67,8 @@ void stopListeningToNFC() {
   
 }
 
+// TODO need to switch the clockwise/CCW directions
+// https://www.arduino.cc/en/Reference/ServoWriteMicroseconds
 void rotateClockwise() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(850);  
