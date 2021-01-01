@@ -14,12 +14,8 @@
 const boolean NFC_DISABLED = false;
 
 // Supported NFC tags
-const uint32_t CARDID_TOP = 3952824665;
-const uint32_t CARDID_BOTTOM = 913822226;
-
-// Debug NFC tags
-//const uint32_t CARDID_TOP = 3495622186;
-//const uint32_t CARDID_BOTTOM = 3068196269;
+const uint32_t CARDID_0_PERCENT = 3952824665;
+const uint32_t CARDID_100_PERCENT = 913822226;
 
 // State
 boolean connectingInProgress = false;
@@ -32,7 +28,6 @@ uint8_t btnUpCurr;
 uint8_t btnUpPrev;
 uint8_t irqCurr;
 uint8_t irqPrev;
-long lastTimeAskedToStartListening = 0;
 
 // Init the MQTT feeds
 AdafruitIO_Feed *balconyShade = io.feed("shade-open");
@@ -53,7 +48,6 @@ void startListeningToNFC() {
   
   Serial.println("START listening to NFC tags..");
   nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
-  lastTimeAskedToStartListening = millis();
 }
 
 void stopListeningToNFC() {
@@ -61,29 +55,26 @@ void stopListeningToNFC() {
     return;
   }
   listeningToNFC = false;
-  lastTimeAskedToStartListening = 0;
   Serial.println("STOP listening to NFC tags..");
   digitalWrite(PN532_RESET, HIGH);
   
 }
 
-// TODO need to switch the clockwise/CCW directions
-// https://www.arduino.cc/en/Reference/ServoWriteMicroseconds
-void rotateClockwise() {
+void spinCounterClockwise() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(850);  
   movingDown = true;
   movingUp = false;
 }
 
-void rotateCounterClockwise() {
+void spinClockwise() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(2100);  
   movingUp = true;
   movingDown = false;
 }
 
-void stopRotating() {
+void stopSpinning() {
   Serial.println("Stopping..");
   movingUp = false;
   movingDown = false;
@@ -107,7 +98,7 @@ uint32_t getCardId(uint8_t uid[], uint8_t uidLength) {
     }
 }
 
-void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
+void printCardInfo(uint8_t uid[], uint8_t uidLength) {
     Serial.println("***********************");
     Serial.println("Found an ISO14443A card !!");
     Serial.print("  UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
@@ -134,15 +125,15 @@ void printShitAboutCard(uint8_t uid[], uint8_t uidLength) {
 void setTargetShadeLevel(int percentOpen) {
   Serial.print("setTargetShadeLevel percentOpen[");Serial.print(percentOpen);Serial.println("]");
   if (percentOpen == 100) {
-    rotateCounterClockwise();
+    spinClockwise();
   } else if (percentOpen == 0) {
-    rotateClockwise();
+    spinCounterClockwise();
   }
   startListeningToNFC();
 }
 
 void stopShade() {
-  stopRotating();
+  stopSpinning();
   stopListeningToNFC();
 }
 
@@ -166,27 +157,27 @@ void handleNFCDetected() {
 
     if (success) {
       uint32_t cardId = getCardId(uid, uidLength);
-      if (cardId == CARDID_TOP) {
-        // Shade is fully closed
+      if (cardId == CARDID_0_PERCENT) {
+        // Shade is 0% open, or fully closed
         if (movingDown) {
-          Serial.print("FOUND TOP CARD while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [0% open] while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(0);
         } else if (movingUp) {
-          Serial.print("Found top card while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+          Serial.print("Found card for position [0% open] while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         } else {
-          Serial.print("Found top card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+          Serial.print("Found card for position [0% open] while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         }
-      } else if (cardId == CARDID_BOTTOM) {
-        // Shade is fully open
+      } else if (cardId == CARDID_100_PERCENT) {
+        // Shade is 100% open
         if (movingUp) {
-          Serial.print("FOUND BOTTOM CARD while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [100% open] while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(100);
         } else if (movingDown) {
-          Serial.print("Found bottom card while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+          Serial.print("Found card for position [100% open] while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         } else {
-          Serial.print("Found bottom card while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");          
+          Serial.print("Found card for position [100% open] while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         }        
       } else {
         Serial.print("Found unidentified card["); Serial.print(cardId); Serial.println("]. Ignoring..");
@@ -197,8 +188,6 @@ void handleNFCDetected() {
       delay(500);
       Serial.println("Start listening for cards again");
       startListeningToNFC();
-// Possible culprit for the problem that needed the hack
-//      nfc.startPassiveTargetIDDetection(PN532_MIFARE_ISO14443A);
     }
 }
 
@@ -235,7 +224,7 @@ void setup() {
   Serial.println("");
   Serial.println("");
   Serial.println("***************************************");
-  Serial.println("  Balcony motorized shades circuit");
+  Serial.println("  Smart Shade Controller");
   Serial.println("");
   Serial.println("  Written by: Udi Cohen");
   Serial.println("***************************************");
@@ -297,19 +286,6 @@ void loop() {
   } else if (irqCurr == LOW && irqPrev == HIGH) {
     Serial.println("##### Got IRQ while not listening..");  
   }
-
-  // Hacky section that re-start listening to cards.
-  // This is a workaround to a situation where the reader reads the same card continiously and 
-  // stops reading any new cards after that.
-//  if (lastTimeAskedToStartListening  > 0 && millis() - lastTimeAskedToStartListening > 5000) {
-//    if (listeningToNFC) {
-//      Serial.println("Start listening for cards again (loop)");
-//      startListeningToNFC();
-//    } else {
-//      Serial.println("Looping...");
-//    }
-//    lastTimeAskedToStartListening = millis();
-//  }
 
   irqPrev = irqCurr;
   btnUpPrev = btnUpCurr;
