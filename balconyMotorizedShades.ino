@@ -31,7 +31,6 @@ uint8_t irqPrev;
 
 // Init the MQTT feeds
 AdafruitIO_Feed *balconyShade = io.feed("shade-open");
-AdafruitIO_Feed *shadeLogs = io.feed("shade-logs");
 
 // Init the object that controls the PN532 NFC chip
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
@@ -60,14 +59,14 @@ void stopListeningToNFC() {
   
 }
 
-void spinCounterClockwise() {
+void lowerShade() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(850);  
   loweringShade = true;
   liftingShade = false;
 }
 
-void spinClockwise() {
+void liftShade() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(2100);  
   liftingShade = true;
@@ -125,9 +124,9 @@ void printCardInfo(uint8_t uid[], uint8_t uidLength) {
 void setTargetShadeLevel(int percentOpen) {
   Serial.print("setTargetShadeLevel percentOpen[");Serial.print(percentOpen);Serial.println("]");
   if (percentOpen == 100) {
-    spinClockwise();
+    liftShade();
   } else if (percentOpen == 0) {
-    spinCounterClockwise();
+    lowerShade();
   }
   startListeningToNFC();
 }
@@ -160,22 +159,22 @@ void handleNFCDetected() {
       if (cardId == CARDID_0_PERCENT) {
         // Shade is 0% open, or fully closed
         if (loweringShade) {
-          Serial.print("Found card for position [0% open] while moving down! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [0% open] while lowering the shade! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(0);
         } else if (liftingShade) {
-          Serial.print("Found card for position [0% open] while moving up, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [0% open] while lifting the shade, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         } else {
           Serial.print("Found card for position [0% open] while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         }
       } else if (cardId == CARDID_100_PERCENT) {
         // Shade is 100% open
         if (liftingShade) {
-          Serial.print("Found card for position [100% open] while moving up! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [100% open] while lifting the shade! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(100);
         } else if (loweringShade) {
-          Serial.print("Found card for position [100% open] while moving down, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
+          Serial.print("Found card for position [100% open] while lowering the shade, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         } else {
           Serial.print("Found card for position [100% open] while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         }        
