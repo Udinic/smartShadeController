@@ -19,7 +19,7 @@ const uint32_t CARDID_100_PERCENT = 913822226;
 
 // State
 boolean connectingInProgress = false;
-bool liftingShade = false;
+bool raisingShade = false;
 bool loweringShade = false;
 bool listeningToNFC = false;
 uint8_t btnDownCurr;
@@ -63,19 +63,19 @@ void lowerShade() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(850);  
   loweringShade = true;
-  liftingShade = false;
+  raisingShade = false;
 }
 
-void liftShade() {
+void raiseShade() {
   myServo.attach(PIN_SERVO);
   myServo.writeMicroseconds(2100);  
-  liftingShade = true;
+  raisingShade = true;
   loweringShade = false;
 }
 
 void stopSpinning() {
   Serial.println("Stopping..");
-  liftingShade = false;
+  raisingShade = false;
   loweringShade = false;
   myServo.detach();
 }
@@ -124,7 +124,7 @@ void printCardInfo(uint8_t uid[], uint8_t uidLength) {
 void setTargetShadeLevel(int percentOpen) {
   Serial.print("setTargetShadeLevel percentOpen[");Serial.print(percentOpen);Serial.println("]");
   if (percentOpen == 100) {
-    liftShade();
+    raiseShade();
   } else if (percentOpen == 0) {
     lowerShade();
   }
@@ -162,15 +162,15 @@ void handleNFCDetected() {
           Serial.print("Found card for position [0% open] while lowering the shade! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(0);
-        } else if (liftingShade) {
-          Serial.print("Found card for position [0% open] while lifting the shade, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
+        } else if (raisingShade) {
+          Serial.print("Found card for position [0% open] while raising the shade, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         } else {
           Serial.print("Found card for position [0% open] while NOT MOVING, ignoring.. cardId["); Serial.print(cardId); Serial.println("].");
         }
       } else if (cardId == CARDID_100_PERCENT) {
         // Shade is 100% open
-        if (liftingShade) {
-          Serial.print("Found card for position [100% open] while lifting the shade! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
+        if (raisingShade) {
+          Serial.print("Found card for position [100% open] while raising the shade! Stopping... cardId["); Serial.print(cardId); Serial.println("].");
           stopShade();
           setShadeLevel(100);
         } else if (loweringShade) {
@@ -264,7 +264,7 @@ void loop() {
   
   if (btnUpCurr == LOW && btnUpPrev == HIGH) {
     Serial.println("Pressed UP button");
-    if (liftingShade || loweringShade) {
+    if (raisingShade || loweringShade) {
       stopShade();
     } else {
       setTargetShadeLevel(100);
@@ -273,7 +273,7 @@ void loop() {
 
   if (btnDownCurr == LOW && btnDownPrev == HIGH) {
     Serial.println("Pressed DOWN button");
-    if (liftingShade || loweringShade) {
+    if (raisingShade || loweringShade) {
       stopShade();
     } else {
       setTargetShadeLevel(0);
