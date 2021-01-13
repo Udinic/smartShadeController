@@ -13,3 +13,7 @@ Arduino library dependencies:
 - Adafruit IO Arduino
 - Adafruit PN532
 - ESP32 Servo
+
+I wrote a detailed blog post about this project, with explanations how everything works. Check it out:
+
+http://blog.udinic.com/2021/01/13/automating-balcony-shade-with-nfc/
